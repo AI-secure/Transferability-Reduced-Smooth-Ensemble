@@ -150,7 +150,68 @@ class ResNet(nn.Module):
         x = self.fc(x)
 
         return x
+    def get_features(self, x, layer, before_relu=False):
+        layers_per_block = 2 * self.n
 
+        x = self.conv1(x)
+        x = self.bn1(x)
+
+        if layer == 1:
+            return x
+
+        x = self.relu(x)
+
+        if layer > 1 and layer <= 1 + layers_per_block:
+            relative_layer = layer - 1 
+            x = self.layer_block_forward(x, self.layer1, relative_layer, before_relu=before_relu)
+            return x
+
+        x = self.layer1(x)
+        if layer > 1 + layers_per_block and layer <= 1 + 2*layers_per_block:
+            relative_layer = layer - (1 + layers_per_block)
+            x = self.layer_block_forward(x, self.layer2, relative_layer, before_relu=before_relu)
+            return x
+        
+        x = self.layer2(x)
+        if layer > 1 + 2*layers_per_block and layer <= 1 + 3*layers_per_block:
+            relative_layer = layer - (1 + 2*layers_per_block)
+            x = self.layer_block_forward(x, self.layer3, relative_layer, before_relu=before_relu)
+            return x
+        
+        x = self.layer3(x)
+        if layer == self.depth:
+            x = self.avgpool(x)
+            x = x.view(x.size(0), -1)
+            return self.fc(x)
+        else:
+            raise ValueError('layer {:d} is out of index!'.format(layer))
+    
+    def layer_block_forward(self, x, layer_block, relative_layer, before_relu=False):
+        out = x
+        if relative_layer == 1:
+            return layer_block[0](out, before_relu, intermediate=True)
+
+        if relative_layer == 2:
+            return layer_block[0](out, before_relu, intermediate=False)
+        
+        out = layer_block[0](out)
+        if relative_layer == 3:
+            return layer_block[1](out, before_relu, intermediate=True)
+
+        if relative_layer == 4:
+            return layer_block[1](out, before_relu, intermediate=False)
+        
+        out = layer_block[1](out)
+        if relative_layer == 5:
+            return layer_block[2](out, before_relu, intermediate=True)
+
+        if relative_layer == 6:
+            return layer_block[2](out, before_relu, intermediate=False)
+
+        raise ValueError('relative_layer is invalid')
+
+    def infer(self, x):
+        return self.forward(x).max(1, keepdim=True)[1]
 
 def resnet(**kwargs):
     """
