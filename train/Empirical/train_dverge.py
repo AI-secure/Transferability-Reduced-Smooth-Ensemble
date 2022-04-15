@@ -149,12 +149,13 @@ def main():
                         'momentum': args.distill_momentum
                         }
 
-    if args.distill_layer == None:
-        distill_cfg['layer'] = random.randint(1, args.depth)
+
 
     loader = DistillationLoader(train_loader, train_loader)
     for epoch in range(args.epochs):
 
+        if args.distill_layer == None:
+            distill_cfg['layer'] = random.randint(1, args.depth)
         DVERGE_Trainer(args, loader, model, criterion, optimizers, epoch, distill_cfg, device, writer)
         test(test_loader, model, criterion, epoch, device, writer)
         evaltrans(args, test_loader, model, criterion, epoch, device, writer)
